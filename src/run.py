@@ -64,7 +64,9 @@ if __name__ == "__main__":
                               )
 
     # Network Definition + Optimizer + Scheduler
-    model = LSTM(hidden_size=n_hidden1, hidden_size2=n_hidden2, num_securities=n_stocks, dropout=0.2, n_layers=2, T=T).cuda()
+    model = LSTM(hidden_size=n_hidden1, hidden_size2=n_hidden2, num_securities=n_stocks, dropout=0.2, n_layers=2, T=T)
+    if use_cuda:
+        model.cuda()
     optimizer = optim.RMSprop(model.parameters(), lr=learning_rate, weight_decay=0.0)  # n
     scheduler_model = lr_scheduler.StepLR(optimizer, step_size=1, gamma=1.0)
 
@@ -92,7 +94,7 @@ if __name__ == "__main__":
                 # Compute predictions
                 output = model(data)
                 loss = criterion(output, target)
-                loss_ += loss.data[0]
+                loss_ += loss.item()
                 # Backpropagation
                 loss.backward()
                 # Gradient descent step
@@ -124,7 +126,7 @@ if __name__ == "__main__":
     torch.save(model, 'lstm' + fn_base + '.pkl')
     # Plot training loss
     plt.figure()
-    x = xrange(len(losses))
+    x = list(range(len(losses)))
     plt.plot(x, np.array(losses), label="loss")
     plt.legend()
     plt.show()

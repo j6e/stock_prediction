@@ -52,8 +52,8 @@ class LSTM(nn.Module):
         x = x.view(seq_length, batch_size, -1)  # just to be sure of the dimensions
 
         # Initial cell states
-        h0 = Variable(torch.zeros(self.rnn.num_layers, batch_size, self.hidden_size)).cuda()
-        c0 = Variable(torch.zeros(self.rnn.num_layers, batch_size, self.hidden_size)).cuda()
+        h0 = Variable(torch.zeros(self.rnn.num_layers, batch_size, self.hidden_size))
+        c0 = Variable(torch.zeros(self.rnn.num_layers, batch_size, self.hidden_size))
         outputs, (ht, ct) = self.rnn(x, (h0, c0))
         out = outputs[-1]  # last prediction
         out = self.fc1(out)

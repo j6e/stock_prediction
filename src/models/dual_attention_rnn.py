@@ -13,7 +13,7 @@ import torch.nn.functional as F
 
 
 class InputAttentionEncoder(nn.Module):
-    def __init__(self, input_dim=6, hidden_dim=128, T=10, in_features=2*128 + 10-1, num_layers=1, out_features=1):
+    def __init__(self, input_dim=6, hidden_dim=128, T=10, in_features=2*128 + 16, num_layers=1, out_features=1):
         """
         Constructor for Input Attention Encoder
         :param input_dim: int, number of time series in data set.
@@ -27,6 +27,8 @@ class InputAttentionEncoder(nn.Module):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.T = T
+
+        in_features = hidden_dim * 2 + T - 1
 
         self.lstm_unit = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=num_layers)
         self.attn_linear = nn.Linear(in_features=in_features, out_features=out_features)
@@ -45,21 +47,24 @@ class InputAttentionEncoder(nn.Module):
         hidden = self.init_hidden(input_batch)  # 1 * batch_size * hidden_dim
         cell = self.init_hidden(input_batch)
         xx = input_batch[:, 0:self.T-1, :].contiguous()
-        input_batch_f = input_batch.type(torch.cuda.FloatTensor)
+        print(xx.shape)
+        #input_batch_f = input_batch.type(torch.cuda.FloatTensor)
+        input_batch_f = input_batch.type(torch.FloatTensor)
         for t in range(self.T - 1):
             h = hidden.repeat(self.input_dim, 1, 1).permute(1, 0, 2)
             c = cell.repeat(self.input_dim, 1, 1).permute(1, 0, 2)
-            xxx = xx.permute(1, 2, 0)
+            xxx = xx.permute(0, 2, 1)
             # Concatenate hidden states with each predictor
-            x = torch.cat((hidden.repeat(self.input_dim, 1, 1).permute(1, 0, 2),
-                           cell.repeat(self.input_dim, 1, 1).permute(1, 0, 2),
-                           xx.permute(1, 2, 0)),
-                          dim=2)  # batch_size * input_dim * (2*hidden_dim + T - 1)
+            print(h.shape, c.shape, xxx.shape)
+            x = torch.cat((h, c, xxx), dim=2)  # batch_size * input_dim * (2*hidden_dim + T - 1)
+            print(x.shape)
             # Attention weights
             x = self.attn_linear(x)  # (batch_size * input_dim) * 1
+            print(x.shape)
             #x = self.bn1(x.view(self.input_dim, -1).type_as(x))
             attn_weights = F.softmax(x.view(-1, self.input_dim).type_as(x))  # batch_size * input_dim, attn weights with values sum up to 1.
             # Eqn. 10: LSTM
+            print(attn_weights.shape, input_batch_f.shape, t, self.T)
             weighted_input = torch.mul(attn_weights, input_batch_f[:, t, :]).type_as(x) # batch_size * input_dim
             self.lstm_unit.flatten_parameters()
             _, lstm_states = self.lstm_unit(weighted_input.unsqueeze(0), (hidden, cell))
@@ -97,7 +102,7 @@ class TemporalAttentionDecoder(nn.Module):
         self.attn_layer = nn.Sequential(nn.Linear(2 * decoder_hidden_dim + encoder_hidden_dim, encoder_hidden_dim),
                                          nn.ReLU(), nn.Linear(encoder_hidden_dim, 1))
         self.lstm_layer = nn.LSTM(input_size=1, hidden_size=decoder_hidden_dim)
-        self.fc = nn.Linear(encoder_hidden_dim + 1, 1)
+        self.fc = nn.Linear(encoder_hidden_dim + 2, 1)
         self.fc_final = nn.Linear(decoder_hidden_dim + encoder_hidden_dim, 1)
 
         self.fc.weight.data.normal_()

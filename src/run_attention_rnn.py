@@ -24,11 +24,11 @@ from data import SP500
 if __name__ == "__main__":
     use_cuda = torch.cuda.is_available()
     # Keep track of loss in tensorboard
-    writer = SummaryWriter()
+    writer = SummaryWriter(comment='attention')
 
     # Parameters
     learning_rate = 0.001
-    batch_size = 16
+    batch_size = 29
     display_step = 100
     max_epochs = 10
     symbols = ['AAPL', 'AMZN']#, AAPL, 'GOOG', 'GOOGL', 'FB', 'AMZN']
@@ -56,7 +56,9 @@ if __name__ == "__main__":
     x, y = train_loader.dataset[0]
     print(x.shape)
     # Network Parameters
-    model = DualAttentionRNN(n_stocks, encoder_hidden_dim=n_hidden1, decoder_hidden_dim=64, T=T).cuda()
+    model = DualAttentionRNN(n_stocks, encoder_hidden_dim=n_hidden1, decoder_hidden_dim=64, T=T)
+    if use_cuda:
+        model.cuda()
     optimizer = optim.RMSprop(model.parameters(), lr=learning_rate, weight_decay=0.0)  # n
     scheduler_model = lr_scheduler.StepLR(optimizer, step_size=1, gamma=1.0)
 
@@ -79,7 +81,7 @@ if __name__ == "__main__":
             if target.data.size()[1] == batch_size:
                 output = model(data, data)
                 loss = criterion(output, target)
-                loss_ += loss.data[0]
+                loss_ += loss.item()
                 loss.backward()
                 optimizer.step()
                 for k in range(batch_size):
@@ -107,7 +109,7 @@ if __name__ == "__main__":
     torch.save(model, 'prout.pkl')
 
     h = plt.figure()
-    x = xrange(len(losses))
+    x = list(range(len(losses)))
     plt.plot(x, np.array(losses), label="loss")
     plt.legend()
     plt.show()
@@ -115,7 +117,7 @@ if __name__ == "__main__":
     # Check
     predictions = np.zeros((len(train_loader.dataset.chunks), n_stocks))
     ground_tr = np.zeros((len(train_loader.dataset.chunks), n_stocks))
-    batch_size_pred = 4
+    batch_size_pred = 29
     dtest = SP500('data/sandp500/individual_stocks_5yr',
                  symbols=symbols,
                  start_date='2013-01-01',
@@ -139,14 +141,14 @@ if __name__ == "__main__":
             data = data.cuda()
             target = target.cuda()
         if target.data.size()[0] == batch_size_pred:
-            output = model(data)
+            output = model(data, data)
             for k in range(batch_size_pred):
                 #print(output.data[0, k])
                 predicted1.append(output.data[k, 0])
-                predicted2.append(output.data[k, 1])
+                predicted2.append(output.data[k, 0])
                 #print(target.data[0, :, k])
                 gt1.append(target.data[k, 0, 0])
-                gt2.append(target.data[k, 0, 1])
+                gt2.append(target.data[k, 0, 0])
             k+=1
 
 

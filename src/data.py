@@ -51,8 +51,8 @@ class SP500(Dataset):
 
         # Read csv files corresponding to symbols
         for symbol in symbols:
-            fn = os.path.join(folder_dataset, symbol + "_data.csv")
-            fn = "/home/louise/src/gresearch/" + folder_dataset + "/" + symbol + "_data.csv"
+          #  fn = os.path.join(folder_dataset, symbol + "_data.csv")
+            fn = "../" + folder_dataset + "/" + symbol + "_data.csv"
             print(fn)
             df_current = pd.read_csv(fn, index_col='Date', usecols=self.use_columns, na_values='nan', parse_dates=True)
             df_current = df_current.rename(columns={'Close': symbol})
